@@ -3,6 +3,7 @@ package fr.epsi.model;
 /**
  * Représente un article du catalogue de la boutique.
  * ICDE848 – TP Jenkins
+ ajout pour test multibranch
  */
 public class Article {
 

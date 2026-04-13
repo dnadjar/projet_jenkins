@@ -9,7 +9,7 @@ pipeline {
     parameters {
         string(name: 'BRANCH', defaultValue: 'main', description: 'Branche Git à builder')
         choice(name: 'ENVIRONMENT', choices: ['dev', 'staging', 'prod'], description: 'Environnement cible')
-        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Ignorer les test')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Ignorer les tests')
     }
 
     stages {
@@ -102,11 +102,34 @@ pipeline {
                 }
             }
         }
+
+        stage('Déclenchement Chaîné') {
+            steps {
+                echo "Appel du job de qualité secondaire..."
+                // On déclenche le job B. wait: false permet de ne pas bloquer ce pipeline
+                build job: 'boutique-qualite', wait: false
+            }
+        }
     }
 
     post {
         always {
             echo "Pipeline terminée — statut : ${currentBuild.currentResult}"
+        }
+        failure {
+            emailext(
+                subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Le build a échoué. Consultez les logs ici : ${env.BUILD_URL}",
+                to: 'ton.adresse@gmail.com', // REMPLACE PAR TON EMAIL
+                attachLog: true
+            )
+        }
+        fixed {
+            emailext(
+                subject: "FIXED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Le build est de nouveau stable : ${env.BUILD_URL}",
+                to: 'damienencour2@gmail.com' // REMPLACE PAR TON EMAIL
+            )
         }
     }
 }
