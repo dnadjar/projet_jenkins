@@ -1,91 +1,71 @@
-/**
- * Jenkinsfile – Pipeline CI complète
- * Projet : Boutique en ligne – ICDE848
- *
- * Ce fichier doit être placé à la RACINE du dépôt Git.
- * Jenkins le détecte automatiquement lors de la création du job Pipeline.
- *
- * Stages :
- *   1. Checkout       → récupère le code depuis Git
- *   2. Build          → compile le code source
- *   3. Tests unitaires → lance *Test.java via Surefire
- *   4. Tests intégration → lance *IT.java via Failsafe
- *   5. Couverture     → génère le rapport JaCoCo
- *   6. Qualité        → Checkstyle + PMD + CPD + SpotBugs
- *   7. Archive        → sauvegarde le JAR dans Jenkins
- *
- * Post :
- *   - failure → email à l'équipe
- *   - fixed   → email quand le build repasse au vert
- */
-
 pipeline {
     agent any
 
-    // Utilisation des noms exacts configurés dans Jenkins [cite: 5, 29, 30]
+    // Utilisation des outils configurés dans "Global Tool Configuration" [cite: 5, 18]
     tools {
         maven 'Maven3'
         jdk   'JDK17'
     }
 
     parameters {
-        string(name: 'BRANCH', defaultValue: 'main', description: 'Branche Git à builder')
+        string(name: 'BRANCH', defaultValue: 'main', description: 'Branche Git à builder') [cite: 6]
         choice(name: 'ENVIRONMENT', choices: ['dev', 'staging', 'prod'], description: 'Environnement cible')
-        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Ignorer les tests')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Ignorer les tests') [cite: 7]
     }
 
     stages {
-        // Stage 1 : Récupérer le code [cite: 8]
+        // ── Stage 1 : Récupérer le code ──────────────
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout scm [cite: 8]
             }
         }
 
-        // Stage 2 : Compilation (On entre dans le sous-dossier) [cite: 9]
+        // ── Stage 2 : Compilation ────────────────────
         stage('Build') {
             steps {
-                dir('ICDE848') {
-                    bat 'mvn clean compile -B'
+                dir('ICDE848') { // Entre dans le sous-dossier [cite: 9]
+                    bat 'mvn clean compile -B' // bat pour Windows [cite: 9]
                 }
             }
         }
 
-        // Stage 3 : Tests unitaires [cite: 10, 11]
+        // ── Stage 3 : Tests unitaires ────────────────
         stage('Tests unitaires') {
-            when { not { expression { return params.SKIP_TESTS } } }
+            when { not { expression { return params.SKIP_TESTS } } } [cite: 10]
             steps {
                 dir('ICDE848') {
-                    bat 'mvn test -B'
+                    bat 'mvn test -B' [cite: 11]
                 }
             }
             post {
                 always {
-                    junit 'ICDE848/target/surefire-reports/*.xml' [cite: 12]
+                    // Publie les rapports de tests [cite: 12]
+                    junit 'ICDE848/target/surefire-reports/*.xml'
                 }
             }
         }
 
-        // Stage 4 : Tests d'intégration [cite: 13, 14]
+        // ── Stage 4 : Tests d'intégration ────────────
         stage('Tests intégration') {
-            when { not { expression { return params.SKIP_TESTS } } }
+            when { not { expression { return params.SKIP_TESTS } } } [cite: 13]
             steps {
                 dir('ICDE848') {
-                    bat 'mvn verify -Dsurefire.skip=true -B'
+                    bat 'mvn verify -Dsurefire.skip=true -B' [cite: 14]
                 }
             }
             post {
                 always {
-                    junit 'ICDE848/target/failsafe-reports/*.xml' [cite: 15]
+                    junit 'ICDE848/target/failsafe-reports/*.xml'
                 }
             }
         }
 
-        // Stage 5 : Couverture de code [cite: 16]
+        // ── Stage 5 : Couverture JaCoCo ──────────────
         stage('Couverture JaCoCo') {
             steps {
                 dir('ICDE848') {
-                    bat 'mvn jacoco:report -B'
+                    bat 'mvn jacoco:report -B' [cite: 15]
                 }
             }
             post {
@@ -94,17 +74,17 @@ pipeline {
                         execPattern:   'ICDE848/target/jacoco.exec',
                         classPattern:  'ICDE848/target/classes',
                         sourcePattern: 'ICDE848/src/main/java',
-                        minimumLineCoverage: '70' [cite: 17]
+                        minimumLineCoverage: '70' [cite: 16, 17]
                     )
                 }
             }
         }
 
-        // Stage 6 : Analyse qualité (Checkstyle, PMD, SpotBugs) [cite: 18, 19]
+        // ── Stage 6 : Analyse qualité ────────────────
         stage('Qualité') {
             steps {
                 dir('ICDE848') {
-                    // Commande groupée pour Windows
+                    // Commande Maven groupée pour Windows [cite: 18, 19]
                     bat 'mvn checkstyle:checkstyle pmd:pmd pmd:cpd spotbugs:spotbugs -B'
                 }
             }
@@ -114,8 +94,8 @@ pipeline {
                         enabledForFailure: true,
                         tools: [
                             checkStyle(pattern: 'ICDE848/target/checkstyle-result.xml'), [cite: 21]
-                            pmdParser(pattern:  'ICDE848/target/pmd.xml'), [cite: 21]
-                            cpd(pattern:        'ICDE848/target/cpd.xml'), [cite: 21]
+                            pmd(pattern:        'ICDE848/target/pmd.xml'), // Correction ici
+                            cpd(pattern:        'ICDE848/target/cpd.xml'),
                             spotBugs(pattern:   'ICDE848/target/spotbugsXml.xml') [cite: 22]
                         ],
                         qualityGates: [[threshold: 10, type: 'TOTAL', unstable: true]] [cite: 23, 24]
@@ -124,10 +104,12 @@ pipeline {
             }
         }
 
-        // Stage 7 : Archive [cite: 25]
+        // ── Stage 7 : Archiver le JAR ────────────────
         stage('Archive') {
             steps {
-                archiveArtifacts artifacts: 'ICDE848/target/*.jar', fingerprint: true
+                dir('ICDE848') {
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true [cite: 25]
+                }
                 echo "Artefact archivé avec succès" [cite: 26]
             }
         }
@@ -135,10 +117,10 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline terminée — statut : ${currentBuild.currentResult}"
+            echo "Pipeline terminée — statut : ${currentBuild.currentResult}" [cite: 30]
         }
         failure {
-            echo "Le build a échoué. Vérifiez la configuration et les logs." [cite: 31, 32]
+            echo "Le build a échoué." [cite: 31]
         }
     }
 }
