@@ -120,7 +120,7 @@ pipeline {
             emailext(
                 subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: "Le build a échoué. Consultez les logs ici : ${env.BUILD_URL}",
-                to: 'ton.adresse@gmail.com', // REMPLACE PAR TON EMAIL
+                to: 'damienencour2@gmail.com', // REMPLACE PAR TON EMAIL
                 attachLog: true
             )
         }
