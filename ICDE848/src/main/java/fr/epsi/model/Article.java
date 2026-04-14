@@ -1,4 +1,4 @@
-package fr.epsi.model
+package fr.epsi.model;
 
 /**
  * Représente un article du catalogue de la boutique.
